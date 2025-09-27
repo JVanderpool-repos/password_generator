@@ -1,0 +1,11 @@
+# No external dependencies required
+# This project uses only Python standard library modules:
+# - random
+# - string  
+# - secrets
+# - argparse
+# - sys
+
+# If you want to add testing dependencies in the future, uncomment:
+# pytest>=7.0.0
+# pytest-cov>=4.0.0
