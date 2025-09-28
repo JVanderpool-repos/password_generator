@@ -1,10 +1,13 @@
-# No external dependencies required
-# This project uses only Python standard library modules:
+# Core dependencies for GUI version
+pyperclip>=1.8.2
+
+# CLI version uses only Python standard library modules:
 # - random
 # - string  
 # - secrets
 # - argparse
 # - sys
+# - tkinter (included with Python)
 
 # If you want to add testing dependencies in the future, uncomment:
 # pytest>=7.0.0
