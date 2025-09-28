@@ -22,10 +22,14 @@ def setup_tcl_environment():
     
     tcl_dir = base_python_dir / "tcl"
     if tcl_dir.exists():
-        tcl_version_dirs = list(tcl_dir.glob("tcl8*"))
-        tk_version_dirs = list(tcl_dir.glob("tk8*"))
+        # Use version-flexible patterns and validate directories
+        tcl_version_dirs = [d for d in tcl_dir.glob("tcl*") if d.is_dir() and (d / "init.tcl").exists()]
+        tk_version_dirs = [d for d in tcl_dir.glob("tk*") if d.is_dir() and (d / "tk.tcl").exists()]
         
         if tcl_version_dirs and tk_version_dirs:
+            # Sort by version (newest first) for forward compatibility
+            tcl_version_dirs.sort(reverse=True)
+            tk_version_dirs.sort(reverse=True)
             os.environ['TCL_LIBRARY'] = str(tcl_version_dirs[0])
             os.environ['TK_LIBRARY'] = str(tk_version_dirs[0])
             return True
@@ -64,10 +68,14 @@ def launch_gui():
                     
                     tcl_dir = base_python_dir / "tcl"
                     if tcl_dir.exists():
-                        tcl_version_dirs = list(tcl_dir.glob("tcl*"))
-                        tk_version_dirs = list(tcl_dir.glob("tk*"))
+                        # Find valid Tcl/Tk directories with version-flexible matching
+                        tcl_version_dirs = [d for d in tcl_dir.glob("tcl*") if d.is_dir() and (d / "init.tcl").exists()]
+                        tk_version_dirs = [d for d in tcl_dir.glob("tk*") if d.is_dir() and (d / "tk.tcl").exists()]
                         
                         if tcl_version_dirs and tk_version_dirs:
+                            # Sort by version (newest first)
+                            tcl_version_dirs.sort(reverse=True)
+                            tk_version_dirs.sort(reverse=True)
                             os.environ['TCL_LIBRARY'] = str(tcl_version_dirs[0])
                             os.environ['TK_LIBRARY'] = str(tk_version_dirs[0])
                             print("✅ Comprehensive fix applied, retrying...")

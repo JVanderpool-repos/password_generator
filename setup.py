@@ -127,13 +127,18 @@ class PasswordGeneratorSetup:
             
             for search_path in search_paths:
                 if search_path.exists():
-                    tcl_dirs = list(search_path.glob("tcl*"))
-                    tk_dirs = list(search_path.glob("tk*"))
+                    # Find valid Tcl/Tk directories with proper validation
+                    tcl_dirs = [d for d in search_path.glob("tcl*") if d.is_dir() and (d / "init.tcl").exists()]
+                    tk_dirs = [d for d in search_path.glob("tk*") if d.is_dir() and (d / "tk.tcl").exists()]
                     
                     if tcl_dirs:
+                        # Sort by version (newest first)
+                        tcl_dirs.sort(reverse=True)
                         print(f"✅ TCL libraries found: {tcl_dirs[0]}")
                         tcl_found = True
                     if tk_dirs:
+                        # Sort by version (newest first)
+                        tk_dirs.sort(reverse=True)
                         print(f"✅ TK libraries found: {tk_dirs[0]}")
                         tk_found = True
                     
@@ -219,10 +224,14 @@ class PasswordGeneratorSetup:
             
             tcl_dir = base_python / "tcl"
             if tcl_dir.exists():
-                tcl_version_dirs = list(tcl_dir.glob("tcl*"))
-                tk_version_dirs = list(tcl_dir.glob("tk*"))
+                # Find and validate Tcl/Tk directories with version-flexible patterns
+                tcl_version_dirs = [d for d in tcl_dir.glob("tcl*") if d.is_dir() and (d / "init.tcl").exists()]
+                tk_version_dirs = [d for d in tcl_dir.glob("tk*") if d.is_dir() and (d / "tk.tcl").exists()]
                 
                 if tcl_version_dirs and tk_version_dirs:
+                    # Sort by version (newest first) for better compatibility
+                    tcl_version_dirs.sort(reverse=True)
+                    tk_version_dirs.sort(reverse=True)
                     os.environ['TCL_LIBRARY'] = str(tcl_version_dirs[0])
                     os.environ['TK_LIBRARY'] = str(tk_version_dirs[0])
                     print("✅ Tcl/Tk environment configured")

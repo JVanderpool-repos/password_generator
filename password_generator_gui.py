@@ -46,15 +46,30 @@ def setup_universal_tkinter():
             Path("/usr/local/lib")
         ]
     
-    # Find and set Tcl/Tk libraries
+    # Find and set Tcl/Tk libraries with version-flexible patterns
     for search_path in [p for p in search_paths if p and p.exists()]:
+        # Use flexible patterns that will match tcl8.x, tcl9.x, etc.
         tcl_dirs = list(search_path.glob("tcl*"))
         tk_dirs = list(search_path.glob("tk*"))
         
         if tcl_dirs and tk_dirs:
-            # Use the first valid match
-            tcl_dir = next((d for d in tcl_dirs if d.is_dir()), None)
-            tk_dir = next((d for d in tk_dirs if d.is_dir()), None)
+            # Sort by version (newest first) and find valid directories
+            tcl_dirs.sort(reverse=True)
+            tk_dirs.sort(reverse=True)
+            
+            # Find the first valid Tcl directory (contains init.tcl)
+            tcl_dir = None
+            for candidate in tcl_dirs:
+                if candidate.is_dir() and (candidate / "init.tcl").exists():
+                    tcl_dir = candidate
+                    break
+            
+            # Find the first valid Tk directory (contains tk.tcl)
+            tk_dir = None
+            for candidate in tk_dirs:
+                if candidate.is_dir() and (candidate / "tk.tcl").exists():
+                    tk_dir = candidate
+                    break
             
             if tcl_dir and tk_dir:
                 os.environ['TCL_LIBRARY'] = str(tcl_dir)
@@ -76,9 +91,10 @@ import threading
 class PasswordGeneratorGUI:
     """Graphical user interface for the password generator."""
     
-    def __init__(self, root):
+    def __init__(self, root, clipboard_manager=None):
         self.root = root
         self.generator = PasswordGenerator()
+        self.clipboard_manager = clipboard_manager or ClipboardManager()
         self.setup_ui()
         
     def setup_ui(self):
@@ -374,8 +390,10 @@ class PasswordGeneratorGUI:
         """Copy all generated passwords to clipboard."""
         if hasattr(self, 'current_passwords') and self.current_passwords:
             passwords_text = '\n'.join(self.current_passwords)
-            pyperclip.copy(passwords_text)
-            self.status_var.set(f"Copied {len(self.current_passwords)} passwords to clipboard")
+            if self.clipboard_manager.copy(passwords_text):
+                self.status_var.set(f"Copied {len(self.current_passwords)} passwords to clipboard")
+            else:
+                self.status_var.set("Copy failed - text displayed above")
         else:
             messagebox.showwarning("Warning", "No passwords to copy!")
             
@@ -424,24 +442,50 @@ class PasswordGeneratorGUI:
         self.strength_details.config(text=details_text)
 
 
+class ClipboardManager:
+    """Manages clipboard operations with fallback for missing pyperclip."""
+    
+    def __init__(self):
+        self.pyperclip_available = False
+        try:
+            import pyperclip
+            self.pyperclip = pyperclip
+            self.pyperclip_available = True
+        except ImportError:
+            self.pyperclip = None
+            print("Warning: pyperclip not available. Copy functionality will use fallback.")
+    
+    def copy(self, text):
+        """Copy text to clipboard with fallback."""
+        if self.pyperclip_available:
+            try:
+                self.pyperclip.copy(text)
+                return True
+            except Exception as e:
+                print(f"Clipboard error: {e}")
+        
+        # Fallback: try tkinter clipboard
+        try:
+            import tkinter as tk
+            root = tk._default_root or tk.Tk()
+            root.clipboard_clear()
+            root.clipboard_append(text)
+            root.update()  # Ensure clipboard is updated
+            return True
+        except Exception as e:
+            print(f"Fallback clipboard failed: {e}")
+            print(f"Text to copy: {text[:100]}{'...' if len(text) > 100 else ''}")
+            return False
+
+
 def main():
     """Main function to run the GUI application."""
-    # Check if pyperclip is available
-    try:
-        import pyperclip
-    except ImportError:
-        print("Warning: pyperclip not available. Copy functionality will be limited.")
-        # Create a mock pyperclip for basic functionality
-        class MockPyperclip:
-            @staticmethod
-            def copy(text):
-                print(f"Would copy to clipboard: {text[:50]}...")
-        import sys
-        sys.modules['pyperclip'] = MockPyperclip()
+    # Initialize clipboard manager with dependency injection
+    clipboard_manager = ClipboardManager()
     
     # Create and run the application
     root = tk.Tk()
-    app = PasswordGeneratorGUI(root)
+    app = PasswordGeneratorGUI(root, clipboard_manager)
     
     # Center window on screen
     root.update_idletasks()
@@ -461,8 +505,10 @@ def main():
     def copy_selection(text_widget):
         try:
             selected_text = text_widget.selection_get()
-            pyperclip.copy(selected_text)
-            app.status_var.set("Selection copied to clipboard")
+            if app.clipboard_manager.copy(selected_text):
+                app.status_var.set("Selection copied to clipboard")
+            else:
+                app.status_var.set("Copy failed")
         except tk.TclError:
             pass  # No selection
             
